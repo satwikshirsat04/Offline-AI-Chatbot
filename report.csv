@@ -1,0 +1,16 @@
+Context Limit,Batch Size,Session,Query,Time Taken
+4K,256,Same Chat,2+2,20 sec
+4K,256,Same Chat,Fibo,1 min 47 sec
+4K,256,Same Chat,Hi,4 min 43 sec
+4K,256,New Chat,Fibo,1 min 40 sec
+4K,256,New Chat,4/2,1 min 8 sec
+2K,64,Same Chat,Fibo,30 sec
+2K,64,Same Chat,Hi,1 min 5 sec
+2K,64,Same Chat,2+9,5 sec
+2K,64,Same Chat,Capital,1 min 50 sec
+16K,64,Same Chat,Fibo,1 min 18 sec
+16K,64,Same Chat,Capital,1 min 34 sec
+16K,64,Same Chat,24/4*9,21 sec
+32K,128,Same Chat,Fibo,1 min 27 sec
+32K,128,Same Chat,Capital,6 min 10 sec
+32K,128,Same Chat,24/4*9,1 min 12 sec

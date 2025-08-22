@@ -1,0 +1,5 @@
+prompt_id,prompt_text,time_taken_same_chat_sec,time_taken_new_chat_sec,output_length,context_size_tokens,platform,os_version,notes
+1,Fibonacci series,86,,High,32000,Android,14,Offline model performance (user-provided timings)
+2,Capital of India,89,93.0,High,32000,Android,14,Offline model performance (user-provided timings)
+3,24/4*9,40,18.0,High,32000,Android,14,Offline model performance (user-provided timings)
+4,Diameter of Earth?,14,11.0,Small,32000,Android,14,Offline model performance (user-provided timings)
