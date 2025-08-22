@@ -12,6 +12,9 @@ A beautiful, fully offline AI chatbot app for Android that works completely with
 - **📱 Android Native**: Built with Jetpack Compose for smooth performance
 - **✅ 32,000 Context Limit**
 
+## 📱UI DESIGN ON ANDROID
+![UI DARK THEME](./UI.jpg)
+
 ## 🚀 Results 32k Context Limit
 ```
 32K CONTEXT LIMIT | 128 BATCH SIZE
