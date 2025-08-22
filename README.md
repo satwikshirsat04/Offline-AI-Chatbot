@@ -1,6 +1,6 @@
 # Local AI - Offline AI Assistant
 
-A beautiful, fully offline AI chatbot app for Android that works completely without internet connection using llama.cpp and your local GGUF model.
+A beautiful, fully offline AI chatbot app for Android that works completely without internet connection using **llama.cpp** and your **local GGUF model**.
 
 ## ✨ Features
 
@@ -57,13 +57,11 @@ Before building this project, ensure you have the following installed:
 
 1. **Clone the repository** (if not already done):
    ```bash
-   git clone https://github.com/csdhall/TrainingAI.git
-   cd LocalAIIndia
+   git clone https://github.com/satwikshirsat04/Offline-AI-Chatbot.git
    ```
 
 2. **Open Android Studio**
 3. **Select "Open an Existing Project"**
-4. **Navigate to** the `LocalAIIndia` folder and click **"OK"**
 
 #### Step 2: Install Required SDK Components
 
@@ -161,7 +159,7 @@ Before building this project, ensure you have the following installed:
 
 **Option 1: Assets Folder (Recommended for Development)**
 ```
-LocalAIIndia/app/src/main/assets/LFM2-1.2B-Q4_0.gguf
+/app/src/main/assets/LFM2-1.2B-Q4_0.gguf
 ```
 - Create the `assets` folder: `app/src/main/assets/`
 - Copy your GGUF model file into this folder
