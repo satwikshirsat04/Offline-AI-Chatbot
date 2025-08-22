@@ -1,4 +1,4 @@
-# Local AI - Offline AI Assistant
+# 🤖 Local AI - Offline AI Assistant
 
 A beautiful, fully offline AI chatbot app for Android that works completely without internet connection using **llama.cpp** and your **local GGUF model**.
 
