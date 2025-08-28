@@ -1,9 +1,0 @@
-Context Limit,Batch Size,Prompt,Time Taken (Same Chat),Time Taken (New Chat),Output Length
-32K,128,Fibonacci Series,1 min 52 sec,1 min 26 sec,
-32K,128,Capital of India,1 min 29 sec,1 min 33 sec,
-32K,128,24/4*9,40 sec,18 sec,
-32K,128,Diameter of Earth,14 sec,11 sec,Small
-4K,128,Fibonacci Series,1 min 24 sec,1 min 6 sec,
-4K,128,Capital of India,2 min 35 sec,49 sec,
-4K,128,24/4*9,1 min 18 sec,43 sec,
-4K,128,Diameter of Earth,1 min 11 sec,2 min 37 sec,

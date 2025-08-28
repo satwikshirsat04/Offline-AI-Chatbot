@@ -1,6 +1,6 @@
 # 🤖 Local AI - Offline AI Assistant
-## Dont Start- Gemma model is not working yet.
-A beautiful, fully offline AI chatbot app for Android that works completely without internet connection using llama.cpp and your local GGUF model.
+
+A beautiful, fully offline AI chatbot app for Android that works completely without internet connection using **llama.cpp** and your **local GGUF model**.
 
 ## ✨ Features
 
@@ -13,16 +13,14 @@ A beautiful, fully offline AI chatbot app for Android that works completely with
 - **✅ 32,000 Context Limit**
 
 ## 📱UI DESIGN ON ANDROID
-![Model Selection](./local_ai_ui.jpg)
 ![UI DARK THEME](./UI.jpg)
 
-## 🚀 Results 32k Context Limit LFM2 1.2B
+## 🚀 Results 32k Context Limit
 ```
 32K CONTEXT LIMIT | 128 BATCH SIZE
 ----------------------------------
 PROMPT 1: FIBONACCI SERIES
-TIME TAKEN : 1 MIN 52 SEC
-ON NEW CHAT : 1 MIN 26 SEC
+TIME TAKEN : 1 MIN 26 SEC
 OUTPUT LENGTH : HIGH
 
 PROMPT 2: CAPITAL OF INDIA
@@ -40,35 +38,10 @@ TIME TAKEN: 14 SEC
 ON NEW CHAT: 11 SEC
 OUTPUT LENGTH : SMALL 
 ```
-## Results on Response Time 32K Context Limit LFM2 1.2B
+#### Response Time 32K Context Limit
 ![Response Time 32K Context Limit](./performance_32k.png)
 
-### AVG TIME TAKEN
-```
-(Same Chat) 32K: 63.75 sec
-(New Chat)  32K: 52.00 sec
-```
 
-### Comparison between 4k and 32k Context Limit
----
-#### Same Chat
-![Response Time Same Chat Context Limit](./same_chat_comparison.png)
----
-<!-- #### New Chat
-![Response Time New Chat Context Limit](./new_chat_comparison.png)
----- -->
-
-### 📌**QWEN 1.8B V/S LFM 1.2B**
-![Response Time Same](./LFM_VS_QWEN.png)
-AVG TIMES
-```
-Qwen 1.8B 32K Average Time: 24.25 sec
-LFM 1.2B 32K Average Time: 57.25 sec
-````
----
-### 📌**QWEN 1.8B V/S LFM 1.2B V/S DEEPSEEK-R1 V/S PHI-4-MINI 4B**
-![Response Time Same](./model_comparison_all_line.png)
-----
 ## 🛠️ Complete Build Instructions for Android Studio
 
 ### Prerequisites
@@ -87,13 +60,11 @@ Before building this project, ensure you have the following installed:
 
 1. **Clone the repository** (if not already done):
    ```bash
-   git clone https://github.com/csdhall/TrainingAI.git
-   cd Local AI
+   git clone https://github.com/satwikshirsat04/Offline-AI-Chatbot.git
    ```
 
 2. **Open Android Studio**
 3. **Select "Open an Existing Project"**
-4. **Navigate to** the `Local AI` folder and click **"OK"**
 
 #### Step 2: Install Required SDK Components
 
@@ -149,14 +120,10 @@ Before building this project, ensure you have the following installed:
    ```
 2. **Download Model from Huggingface**
 
-- LFM link: https://huggingface.co/unsloth/LFM2-1.2B-GGUF/blob/main/LFM2-1.2B-Q4_0.gguf
-- Phi-4-Mini Link: https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF?show_file_info=Phi-4-mini-instruct-Q4_K_M.gguf
-- Qwen Link: https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat-GGUF
-- Deepseek Link: https://huggingface.co/matrixportalx/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M-GGUF?show_file_info=deepseek-r1-distill-qwen-1.5b-q4_k_m.gguf
+- link: https://huggingface.co/unsloth/LFM2-1.2B-GGUF/blob/main/LFM2-1.2B-Q4_0.gguf
 
 2. **Add Model**: Place your GGUF model file in the assets directory:
    ```
-   Example -
    app/src/main/assets/LFM2-1.2B-Q4_0.gguf
    ```
 
@@ -172,7 +139,7 @@ Before building this project, ensure you have the following installed:
    ```
    app/src/main/
    ├── assets/
-   │   └── All 4 Models GGUF Files
+   │   └── LFM2-1.2B-Q4_0.gguf
    └── jniLibs/
        └── arm64-v8a/
            ├── libllama.so
@@ -195,10 +162,10 @@ Before building this project, ensure you have the following installed:
 
 **Option 1: Assets Folder (Recommended for Development)**
 ```
-Local AI/app/src/main/assets/
+/app/src/main/assets/LFM2-1.2B-Q4_0.gguf
 ```
 - Create the `assets` folder: `app/src/main/assets/`
-- Copy your GGUF model files into this folder
+- Copy your GGUF model file into this folder
 - Rebuild the project to include the model in the APK
 
 
@@ -358,6 +325,20 @@ Local AI/app/src/main/assets/
 - Stick with 2048–4096 for smooth performance.
 
 - 32k is theoretical max, but not practical for phones right now.
+
+### 📊 Performance Analysis Results
+
+Here are the detailed performance analysis results from our testing:
+
+#### Average Response Time per Context Limit
+![Average Response Time per Context Limit](./avg_response_time_per_context_limit.png)
+
+#### Response Time per Query Context Limit
+![Response Time per Query Context Limit](./response_time_per_query_context_limit.png)
+
+#### Response Time per Query Batch Size
+![Response Time per Query Batch Size](./response_time_per_query_batch_size.png)
+
 
 
 ### ⚡ Device-Specific Performance Guidelines
