@@ -46,28 +46,28 @@ bool LlamaWrapper::initialize(const std::string& modelPath) {
     // Adjust context parameters based on model type
     switch (m_current_model_type) {
         case MODEL_LFM2:
-            ctx_params.n_ctx = 32768;
-            ctx_params.n_batch = 128;
+            ctx_params.n_ctx = 16384;
+            ctx_params.n_batch = 64;
             ctx_params.n_threads = 4;
             break;
         case MODEL_PHI4:
-            ctx_params.n_ctx = 32768;
-            ctx_params.n_batch = 128;
+            ctx_params.n_ctx = 16384;
+            ctx_params.n_batch = 64;
             ctx_params.n_threads = 4;
             break;
         case MODEL_QWEN:
-            ctx_params.n_ctx = 32768;
-            ctx_params.n_batch = 128;
+            ctx_params.n_ctx = 16384;
+            ctx_params.n_batch = 64;
             ctx_params.n_threads = 4;
             break;
         case MODEL_DEEPSEEK:
-            ctx_params.n_ctx = 32768;
-            ctx_params.n_batch = 128;
+            ctx_params.n_ctx = 16384;
+            ctx_params.n_batch = 64;
             ctx_params.n_threads = 4;
             break;
         default:
             ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 128;
+            ctx_params.n_batch = 64;
             ctx_params.n_threads = 4;
             break;
     }

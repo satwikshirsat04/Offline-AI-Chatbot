@@ -1,25 +1,78 @@
 package com.example.localaiindia.ui.screens
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,8 +81,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.localaiindia.model.ChatSession
-import com.example.localaiindia.ui.components.*
-import com.example.localaiindia.ui.theme.*
+import com.example.localaiindia.ui.components.ChatBubble
+import com.example.localaiindia.ui.components.MessageInput
+import com.example.localaiindia.ui.theme.Background
+import com.example.localaiindia.ui.theme.BackgroundDark
+import com.example.localaiindia.ui.theme.OnSurface
+import com.example.localaiindia.ui.theme.OnSurfaceDark
+import com.example.localaiindia.ui.theme.Primary
+import com.example.localaiindia.ui.theme.PrimaryDark
+import com.example.localaiindia.ui.theme.Secondary
+import com.example.localaiindia.ui.theme.SecondaryDark
+import com.example.localaiindia.ui.theme.Surface
+import com.example.localaiindia.ui.theme.SurfaceDark
+import com.example.localaiindia.ui.theme.ThemePreferences
 import com.example.localaiindia.viewmodel.ChatViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,7 +112,7 @@ fun ChatScreen(
     val messages by chatViewModel.messages.collectAsState()
     val isLoading by chatViewModel.isLoading.collectAsState()
     val isModelReady by chatViewModel.isModelReady.collectAsState()
-    val currentModel by chatViewModel.currentModel.collectAsState() // New state for current model
+    val currentModel by chatViewModel.currentModel.collectAsState()
 
     var currentMessage by remember { mutableStateOf("") }
     var isSidebarOpen by remember { mutableStateOf(false) }
@@ -154,6 +218,28 @@ fun ChatScreen(
                         }
                     },
                     actions = {
+                        // Benchmark access button
+                        IconButton(
+                            onClick = {
+                                chatViewModel.toggleBenchmarkMenu()
+                            },
+                            modifier = Modifier
+                                .background(
+                                    color = if (isDarkTheme) SecondaryDark.copy(alpha = 0.1f) else Secondary.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Assessment,
+                                contentDescription = "Performance Benchmark",
+                                tint = if (isDarkTheme) SecondaryDark else Secondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         // Model selection button
                         IconButton(
                             onClick = { showModelSelection = true },
@@ -244,6 +330,17 @@ fun ChatScreen(
                     }
                 }
 
+                // Benchmark Menu Overlay
+                val showBenchmarkMenu by chatViewModel.showBenchmarkMenu.collectAsState()
+                if (showBenchmarkMenu) {
+                    BenchmarkMenuOverlay(
+                        isDarkTheme = isDarkTheme,
+                        chatViewModel = chatViewModel,
+                        onDismiss = { chatViewModel.closeBenchmarkMenu() },
+                        onNavigateToBenchmark = { /* Handle navigation to full benchmark screen */ }
+                    )
+                }
+
                 // Message Input Area
                 MessageInput(
                     message = currentMessage,
@@ -262,6 +359,246 @@ fun ChatScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun BenchmarkMenuOverlay(
+    isDarkTheme: Boolean,
+    chatViewModel: ChatViewModel,
+    onDismiss: () -> Unit,
+    onNavigateToBenchmark: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val sessionStats by chatViewModel.sessionStats.collectAsState()
+    val responseTimeHistory by chatViewModel.responseTimeHistory.collectAsState()
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .clickable(enabled = false) { }, // Prevent dismiss when clicking card
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDarkTheme) SurfaceDark else Surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Performance Dashboard",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDarkTheme) OnSurfaceDark else OnSurface
+                    )
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = if (isDarkTheme) OnSurfaceDark else OnSurface
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Quick Stats - Fix the smart cast issue
+                sessionStats?.let { stats ->
+                    QuickStatsGrid(
+                        sessionStats = stats,
+                        isDarkTheme = isDarkTheme
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
+                // Action Buttons
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            onNavigateToBenchmark()
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDarkTheme) PrimaryDark else Primary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = "Full Dashboard",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Open Full Benchmark Dashboard",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            chatViewModel.startBenchmark(50)
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isDarkTheme) SecondaryDark else Secondary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Quick Benchmark",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Run Quick Benchmark (50 prompts)")
+                    }
+
+                    if (responseTimeHistory.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = {
+                                // Export current session data
+                                val report = chatViewModel.getPerformanceReport()
+                                // Handle sharing report
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (isDarkTheme) OnSurfaceDark else OnSurface
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Export Report",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Export Session Report")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickStatsGrid(
+    sessionStats: ChatViewModel.SessionStats,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDarkTheme) PrimaryDark.copy(alpha = 0.1f) else Primary.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Current Session Performance",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDarkTheme) PrimaryDark else Primary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Stats grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                QuickStatItem(
+                    value = sessionStats.totalPrompts.toString(),
+                    label = "Prompts",
+                    isDarkTheme = isDarkTheme
+                )
+                QuickStatItem(
+                    value = "${sessionStats.averageResponseTime.toInt()}ms",
+                    label = "Avg Time",
+                    isDarkTheme = isDarkTheme
+                )
+                QuickStatItem(
+                    value = "${sessionStats.p99ResponseTime.toInt()}ms",
+                    label = "P99 Time",
+                    isDarkTheme = isDarkTheme
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                QuickStatItem(
+                    value = "${"%.1f".format(sessionStats.tokensPerSecond)}",
+                    label = "Tokens/s",
+                    isDarkTheme = isDarkTheme
+                )
+                QuickStatItem(
+                    value = "${sessionStats.successRate.toInt()}%",
+                    label = "Success Rate",
+                    isDarkTheme = isDarkTheme
+                )
+                QuickStatItem(
+                    value = sessionStats.totalTokens.toString(),
+                    label = "Total Tokens",
+                    isDarkTheme = isDarkTheme
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickStatItem(
+    value: String,
+    label: String,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (isDarkTheme) OnSurfaceDark else OnSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isDarkTheme) OnSurfaceDark.copy(alpha = 0.7f) else OnSurface.copy(alpha = 0.7f)
+        )
     }
 }
 
@@ -467,7 +804,7 @@ private fun ModelCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Features or capabilities could be added here
+            // Features
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -578,7 +915,6 @@ private fun SidebarContent(
 
             Spacer(modifier = Modifier.height(12.dp))
         }
-
         // Change Model Button
         Button(
             onClick = onChangeModel,
