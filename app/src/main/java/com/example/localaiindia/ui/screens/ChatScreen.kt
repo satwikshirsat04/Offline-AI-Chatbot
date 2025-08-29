@@ -372,6 +372,7 @@ fun BenchmarkMenuOverlay(
 ) {
     val sessionStats by chatViewModel.sessionStats.collectAsState()
     val responseTimeHistory by chatViewModel.responseTimeHistory.collectAsState()
+    val currentModel by chatViewModel.currentModel.collectAsState() // Get current model
 
     Box(
         modifier = modifier
@@ -384,7 +385,7 @@ fun BenchmarkMenuOverlay(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .wrapContentHeight()
-                .clickable(enabled = false) { }, // Prevent dismiss when clicking card
+                .clickable(enabled = false) { },
             colors = CardDefaults.cardColors(
                 containerColor = if (isDarkTheme) SurfaceDark else Surface
             ),
@@ -394,31 +395,47 @@ fun BenchmarkMenuOverlay(
             Column(
                 modifier = Modifier.padding(24.dp)
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Header with model name
+                Column(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Performance Dashboard",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) OnSurfaceDark else OnSurface
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Performance Dashboard",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) OnSurfaceDark else OnSurface
+                        )
 
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = if (isDarkTheme) OnSurfaceDark else OnSurface
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = if (isDarkTheme) OnSurfaceDark else OnSurface
+                            )
+                        }
+                    }
+
+                    // Display current model name
+                    currentModel?.let { model ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Model: ${getModelDisplayName(model)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isDarkTheme) OnSurfaceDark.copy(alpha = 0.7f) 
+                                   else OnSurface.copy(alpha = 0.7f),
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Quick Stats - Fix the smart cast issue
+                // Quick Stats
                 sessionStats?.let { stats ->
                     QuickStatsGrid(
                         sessionStats = stats,
