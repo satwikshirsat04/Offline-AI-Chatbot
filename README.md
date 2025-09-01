@@ -14,7 +14,7 @@ A beautiful, fully offline AI chatbot app for Android that works completely with
 ## 📱UI DESIGN ON ANDROID
 ![Model Selection](./local_ai_ui.jpg)
 ![UI DARK THEME](./UI.jpg)
-
+<!-- 
 ## 🚀 Results 32k Context Limit LFM2 1.2B
 ```
 32K CONTEXT LIMIT | 128 BATCH SIZE
@@ -38,11 +38,11 @@ PROMPT 4: DIAMETER OF EARTH?
 TIME TAKEN: 14 SEC
 ON NEW CHAT: 11 SEC
 OUTPUT LENGTH : SMALL 
-```
+``` -->
 ## Results on Response Time 32K Context Limit LFM2 1.2B
 ![Response Time 32K Context Limit](./performance_32k.png)
 
-### AVG TIME TAKEN
+<!-- ### AVG TIME TAKEN
 ```
 (Same Chat) 32K: 63.75 sec
 (New Chat)  32K: 52.00 sec
@@ -51,25 +51,34 @@ OUTPUT LENGTH : SMALL
 ### Comparison between 4k and 32k Context Limit
 ---
 #### Same Chat
-![Response Time Same Chat Context Limit](./same_chat_comparison.png)
----
+![Response Time Same Chat Context Limit](./same_chat_comparison.png) -->
+
 <!-- #### New Chat
 ![Response Time New Chat Context Limit](./new_chat_comparison.png)
 ---- -->
 
-### 📌**QWEN 1.8B V/S LFM 1.2B**
+<!-- ### 📌**QWEN 1.8B V/S LFM 1.2B**
 ![Response Time Same](./LFM_VS_QWEN.png)
 AVG TIMES
 ```
 Qwen 1.8B 32K Average Time: 24.25 sec
 LFM 1.2B 32K Average Time: 57.25 sec
-````
+```` -->
 ---
-### 📌**QWEN 1.8B V/S LFM 1.2B V/S DEEPSEEK-R1 V/S PHI-4-MINI 4B**
+<!-- ### 📌**QWEN 1.8B V/S LFM 1.2B V/S DEEPSEEK-R1 V/S PHI-4-MINI 4B**
 ![Response Time Same](./model_comparison_all_line.png)
-----
-## 🛠️ Complete Build Instructions for Android Studio
+---- -->
+## P99 LATENCY REPORT (16k Context):
+##### QWEN 1.8B WITH 4K CONTEXT
+![P99 Latency Report](./p99_time.png)
+## AVG TIME REPORT (16k Context):
+![Avg Time Report](./avg_time.png)
+## TOKENS/SEC (16k Context):
+![TOKENS/SEC Report](./tokens_per_s.png)
+## TOTAL TOKENS (16k Context):
+![TOTAL TOKENS Report](./total_tokens.png)
 
+## 🛠️ Complete Build Instructions for Android Studio
 ### Prerequisites
 
 Before building this project, ensure you have the following installed:
@@ -158,7 +167,11 @@ Before building this project, ensure you have the following installed:
    Example -
    app/src/main/assets/LFM2-1.2B-Q4_0.gguf
    ```
-
+3. **Add Prompt.txt from root directory to the assets folder**
+   ```
+   Example -
+   app/src/main/assets/prompt.txt
+   ```
 ##### 5.3: Verify Configuration
 1. **Check** `app/build.gradle.kts` contains:
    ```kotlin

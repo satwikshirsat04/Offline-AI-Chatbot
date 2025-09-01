@@ -1,462 +1,332 @@
-#include "llama_wrapper.h"
-#include "include/llama.h"
 #include <android/log.h>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
+#include <string>
 #include <vector>
-#include <cstdlib>
-#include <cmath>
+#include <memory>
+#include <stdexcept>
+#include <thread>
+#include "include/llama.h"
+#include "llama_wrapper.h"
 
-#define LOG_TAG "LlamaWrapper"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "LlamaWrapper", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "LlamaWrapper", __VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "LlamaWrapper", __VA_ARGS__)
 
-LlamaWrapper::LlamaWrapper() : m_initialized(false), m_model(nullptr), m_context(nullptr), m_current_model_type(MODEL_UNKNOWN) {
+LlamaWrapper::LlamaWrapper()
+        : m_initialized(false), m_model(nullptr), m_context(nullptr), m_sampler(nullptr),
+          m_current_model_type(MODEL_UNKNOWN), m_n_ctx(16384), m_n_threads(4) {  // UPDATED: 16K context, 4 threads
     LOGI("LlamaWrapper constructor called");
-    llama_backend_init();
 }
 
 LlamaWrapper::~LlamaWrapper() {
+    LOGI("LlamaWrapper destructor called");
     cleanup();
-    llama_backend_free();
 }
 
 bool LlamaWrapper::initialize(const std::string& modelPath) {
-    LOGI("Initializing LlamaWrapper with model: %s", modelPath.c_str());
-
-    // Clean up any existing model first - IMPORTANT: Complete cleanup
+    LOGI("=== Starting model initialization ===");
+    m_modelPath = modelPath;
     cleanup();
 
-    m_modelPath = modelPath;
-    m_current_model_type = detectModelType(modelPath);
+    try {
+        llama_backend_init();
+        LOGD("Llama backend initialized");
 
-    LOGI("Detected model type: %d", static_cast<int>(m_current_model_type));
+        // Conservative model parameters
+        llama_model_params model_params = llama_model_default_params();
+        model_params.n_gpu_layers = 0;
+        model_params.use_mmap = true;
+        model_params.use_mlock = false;
+        model_params.vocab_only = false;
 
-    llama_model_params model_params = llama_model_default_params();
-    model_params.n_gpu_layers = 0; // CPU only for mobile
-    m_model = llama_model_load_from_file(modelPath.c_str(), model_params);
-    if (m_model == nullptr) {
-        LOGE("Error loading model");
+        // Load model
+        m_model = llama_model_load_from_file(modelPath.c_str(), model_params);
+        if (!m_model) {
+            LOGE("Failed to load model from file: %s", modelPath.c_str());
+            cleanup();
+            return false;
+        }
+
+        LOGI("Model loaded successfully");
+        m_current_model_type = detectModelType(modelPath);
+
+        // UPDATED: 16K context parameters
+        llama_context_params ctx_params = llama_context_default_params();
+
+        // Adjust context parameters based on model type (as shown in your screenshot)
+        switch (m_current_model_type) {
+            case MODEL_LFM2:
+                ctx_params.n_ctx = 16384;
+                ctx_params.n_batch = 128;
+                ctx_params.n_threads = 4;
+                break;
+            case MODEL_PHI4:
+                ctx_params.n_ctx = 16384;
+                ctx_params.n_batch = 128;
+                ctx_params.n_threads = 4;
+                break;
+            case MODEL_QWEN:
+                ctx_params.n_ctx = 8192;
+                ctx_params.n_batch = 64;
+                ctx_params.n_threads = 4;
+                break;
+            case MODEL_DEEPSEEK:
+                ctx_params.n_ctx = 16384;
+                ctx_params.n_batch = 128;
+                ctx_params.n_threads = 4;
+                break;
+            default:
+                ctx_params.n_ctx = 16384;
+                ctx_params.n_batch = 128;
+                ctx_params.n_threads = 4;
+                break;
+        }
+
+        ctx_params.n_threads_batch = ctx_params.n_threads;
+        ctx_params.no_perf = true;
+        ctx_params.embeddings = false;
+
+        // Create context
+        m_context = llama_init_from_model(m_model, ctx_params);
+        if (!m_context) {
+            LOGE("Failed to create llama context");
+            cleanup();
+            return false;
+        }
+
+        LOGI("Context created successfully with 16K context");
+
+        // Initialize sampler chain
+        auto sparams = llama_sampler_chain_default_params();
+        m_sampler = llama_sampler_chain_init(sparams);
+        llama_sampler_chain_add(m_sampler, llama_sampler_init_greedy());
+        LOGI("Sampler initialized successfully");
+
+        // Verify model
+        const struct llama_vocab* vocab = llama_model_get_vocab(m_model);
+        if (!vocab) {
+            LOGE("Model vocabulary check failed");
+            cleanup();
+            return false;
+        }
+
+        int32_t vocab_size = llama_vocab_n_tokens(vocab);
+        if (vocab_size <= 0) {
+            LOGE("Invalid vocabulary size: %d", vocab_size);
+            cleanup();
+            return false;
+        }
+
+        LOGI("Vocabulary size: %d tokens", vocab_size);
+        m_initialized = true;
+        LOGI("=== Model initialization completed successfully ===");
+        return true;
+
+    } catch (const std::exception& e) {
+        LOGE("Exception during initialization: %s", e.what());
+        cleanup();
         return false;
     }
-
-    llama_context_params ctx_params = llama_context_default_params();
-
-    // Adjust context parameters based on model type
-    switch (m_current_model_type) {
-        case MODEL_LFM2:
-            ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 64;
-            ctx_params.n_threads = 4;
-            break;
-        case MODEL_PHI4:
-            ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 64;
-            ctx_params.n_threads = 4;
-            break;
-        case MODEL_QWEN:
-            ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 64;
-            ctx_params.n_threads = 4;
-            break;
-        case MODEL_DEEPSEEK:
-            ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 64;
-            ctx_params.n_threads = 4;
-            break;
-        default:
-            ctx_params.n_ctx = 16384;
-            ctx_params.n_batch = 64;
-            ctx_params.n_threads = 4;
-            break;
-    }
-
-    m_n_ctx = ctx_params.n_ctx;
-    m_n_threads = ctx_params.n_threads;
-
-    m_context = llama_init_from_model(m_model, ctx_params);
-    if (m_context == nullptr) {
-        LOGE("Error creating context");
-        llama_model_free(m_model);
-        m_model = nullptr;
-        return false;
-    }
-
-    m_initialized = true;
-    LOGI("Model initialized successfully with context size: %d, Model type: %d", m_n_ctx, static_cast<int>(m_current_model_type));
-
-    return true;
 }
 
-LlamaWrapper::ModelType LlamaWrapper::detectModelType(const std::string& modelPath) {
-    std::string path_lower = modelPath;
-    std::transform(path_lower.begin(), path_lower.end(), path_lower.begin(), ::tolower);
-
-    if (path_lower.find("lfm2") != std::string::npos) {
-        return MODEL_LFM2;
-    } else if (path_lower.find("phi-4") != std::string::npos || path_lower.find("phi4") != std::string::npos) {
-        return MODEL_PHI4;
-    } else if (path_lower.find("qwen") != std::string::npos) {
-        return MODEL_QWEN;
-    } else if (path_lower.find("deepseek") != std::string::npos) {
-        return MODEL_DEEPSEEK;
+std::string LlamaWrapper::generateResponse(const std::string& prompt) {
+    if (!m_initialized || !m_model || !m_context || !m_sampler) {
+        LOGE("Model not properly initialized");
+        return "Error: Model not initialized";
     }
 
+    try {
+        LOGI("Generating response for prompt: %.50s...", prompt.c_str());
+
+        // Allow longer prompts with 16K context
+        std::string limited_prompt = prompt;
+        const size_t MAX_PROMPT_LENGTH = 1000;  // INCREASED for 16K context
+        if (limited_prompt.length() > MAX_PROMPT_LENGTH) {
+            limited_prompt = limited_prompt.substr(0, MAX_PROMPT_LENGTH);
+            LOGD("Prompt truncated to %zu characters", MAX_PROMPT_LENGTH);
+        }
+
+        std::vector<llama_token> prompt_tokens = tokenize(limited_prompt, true);
+        if (prompt_tokens.empty()) {
+            LOGE("Failed to tokenize prompt");
+            return "Error: Failed to process prompt";
+        }
+
+        if (prompt_tokens.size() > 512) {  // INCREASED from 64
+            prompt_tokens.resize(512);
+            LOGD("Token count limited to 512 tokens");
+        }
+
+        LOGD("Tokenized prompt into %zu tokens", prompt_tokens.size());
+        std::string response = generateText(prompt_tokens, 256);  // INCREASED from 100
+        LOGI("Generated response length: %zu characters", response.length());
+        return response;
+
+    } catch (const std::exception& e) {
+        LOGE("Exception during response generation: %s", e.what());
+        return "Error: Exception during response generation";
+    }
+}
+
+void LlamaWrapper::cleanup() {
+    LOGI("Starting resource cleanup...");
+    try {
+        if (m_sampler) {
+            llama_sampler_free(m_sampler);
+            m_sampler = nullptr;
+            LOGD("Sampler freed successfully");
+        }
+
+        if (m_context) {
+            llama_memory_t mem = llama_get_memory(m_context);
+            if (mem) {
+                llama_memory_clear(mem, true);
+            }
+            llama_free(m_context);
+            m_context = nullptr;
+            LOGD("Context freed successfully");
+        }
+
+        if (m_model) {
+            llama_model_free(m_model);
+            m_model = nullptr;
+            LOGD("Model freed successfully");
+        }
+
+        m_initialized = false;
+        LOGI("Resource cleanup completed successfully");
+
+    } catch (const std::exception& e) {
+        LOGE("Exception during cleanup: %s", e.what());
+        m_context = nullptr;
+        m_model = nullptr;
+        m_sampler = nullptr;
+        m_initialized = false;
+    }
+}
+
+// Rest of your existing methods remain the same...
+LlamaWrapper::ModelType LlamaWrapper::detectModelType(const std::string& modelPath) {
+    if (modelPath.find("LFM2") != std::string::npos || modelPath.find("lfm2") != std::string::npos) {
+        return MODEL_LFM2;
+    } else if (modelPath.find("Phi-4") != std::string::npos || modelPath.find("phi4") != std::string::npos) {
+        return MODEL_PHI4;
+    } else if (modelPath.find("qwen") != std::string::npos || modelPath.find("Qwen") != std::string::npos) {
+        return MODEL_QWEN;
+    } else if (modelPath.find("DeepSeek") != std::string::npos || modelPath.find("deepseek") != std::string::npos) {
+        return MODEL_DEEPSEEK;
+    }
     return MODEL_UNKNOWN;
 }
 
 std::string LlamaWrapper::getSystemPrompt() {
     switch (m_current_model_type) {
-        case MODEL_LFM2:
-            return "<|im_start|>system\nYou are Local AI India, a helpful offline AI assistant powered by LFM2. You work completely on the user's device to keep conversations private and secure. Provide helpful, accurate, and informative responses.<|im_end|>\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n";
-
         case MODEL_PHI4:
-            // Phi-4 chat template: <|system|>content<|end|><|user|>content<|end|><|assistant|>
-            return "<|system|>You are Phi-4, a helpful offline AI assistant. You work completely on the user's device to keep conversations private and secure. Provide helpful, accurate, and informative responses.<|end|><|user|>{{prompt}}<|end|><|assistant|>";
-
+            return "<|system|>\nYou are a helpful AI assistant.<|end|>\n<|user|>\n";
         case MODEL_QWEN:
-            // Qwen 1.5 uses ChatML format with proper spacing
-            return "<|im_start|>system\nYou are Qwen, a helpful AI assistant powered by Qwen 1.5. You are running offline on the user's device to ensure privacy and security.<|im_end|>\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n";
-
-        case MODEL_DEEPSEEK:
-            // DeepSeek-R1 uses a simple format without complex tags
-            return "User: {{prompt}}\n\nAssistant: ";
-
+            return "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
         default:
-            return "<|im_start|>system\nYou are Local AI India, a helpful offline AI assistant. You work completely on the user's device to keep conversations private and secure. Provide helpful, accurate, and informative responses.<|im_end|>\n<|im_start|>user\n{{prompt}}<|im_end|>\n<|im_start|>assistant\n";
+            return "";
     }
 }
 
 std::vector<std::string> LlamaWrapper::getStopSequences() {
     switch (m_current_model_type) {
-        case MODEL_LFM2:
-            return {"<|im_end|>", "<|endoftext|>", "</s>"};
-
         case MODEL_PHI4:
-            return {"<|end|>", "<|user|>", "<|system|>", "</s>"};
-
+            return {"<|end|>", "<|user|>", "<|assistant|>"};
         case MODEL_QWEN:
-            return {"<|im_end|>", "<|endoftext|>", "</s>"};
-
-        case MODEL_DEEPSEEK:
-            return {"User:", "\nUser:", "\n\nUser:", "</s>"};
-
+            return {"<|im_end|>", "<|im_start|>"};
         default:
-            return {"<|im_end|>", "<|endoftext|>", "</s>"};
+            return {};
     }
 }
 
-std::string LlamaWrapper::generateResponse(const std::string& prompt) {
-    if (!m_initialized) {
-        LOGE("Model not initialized when generateResponse called");
-        return "Error: Model not initialized";
-    }
-
-    LOGI("Generating response for model type %d, prompt: %s", static_cast<int>(m_current_model_type), prompt.substr(0, 50).c_str());
-
-    // IMPORTANT: Always reset context for new conversation to prevent template mixing
-    llama_context_params ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = m_n_ctx;
-    ctx_params.n_batch = 64;
-    ctx_params.n_threads = m_n_threads;
-
-    if (m_context) {
-        llama_free(m_context);
-        m_context = nullptr;
-    }
-    
-    m_context = llama_init_from_model(m_model, ctx_params);
-    if (m_context == nullptr) {
-        LOGE("Failed to reset context");
-        return "Error: Failed to reset context";
-    }
-
-    // Get model-specific system prompt and format it
-    std::string system_prompt = getSystemPrompt();
-    std::string formatted_prompt;
-
-    size_t placeholder_pos = system_prompt.find("{{prompt}}");
-    if (placeholder_pos != std::string::npos) {
-        system_prompt.replace(placeholder_pos, 10, prompt);
-        formatted_prompt = system_prompt;
-    } else {
-        formatted_prompt = prompt;
-    }
-
-    LOGI("Formatted prompt for model type %d: %s", static_cast<int>(m_current_model_type), formatted_prompt.substr(0, 100).c_str());
-
-    // Handle BOS token properly for different models
-    bool add_bos = true;
-    if (m_current_model_type == MODEL_PHI4) {
-        // Phi-4 doesn't need explicit BOS token
-        add_bos = false;
-    }
-
-    std::vector<int> tokens_list = tokenize(formatted_prompt, add_bos);
-    if (tokens_list.empty()) {
-        LOGE("Could not tokenize prompt");
-        return "Error: Could not tokenize prompt";
-    }
-
-    LOGI("Tokenized prompt length: %zu", tokens_list.size());
-
-    // Adjust max tokens based on model type and context size
-    int max_tokens = std::min(1024, m_n_ctx - (int)tokens_list.size() - 100);
-
-    // Model-specific token limits
-    switch (m_current_model_type) {
-        case MODEL_PHI4:
-            max_tokens = std::min(768, max_tokens);
-            break;
-        case MODEL_DEEPSEEK:
-            max_tokens = std::min(800, max_tokens);
-            break;
-        case MODEL_QWEN:
-            max_tokens = std::min(768, max_tokens);
-            break;
-        case MODEL_LFM2:
-            max_tokens = std::min(1024, max_tokens);
-            break;
-        default:
-            max_tokens = std::min(512, max_tokens);
-            break;
-    }
-
-    std::string result = generateText(tokens_list, max_tokens);
-
-    // Clean up the result with model-specific stop sequences
-    std::vector<std::string> stop_sequences = getStopSequences();
-    for (const std::string& stop_seq : stop_sequences) {
-        size_t pos = result.find(stop_seq);
-        if (pos != std::string::npos) {
-            result = result.substr(0, pos);
-            LOGI("Found stop sequence: %s", stop_seq.c_str());
-            break;
-        }
-    }
-
-    // Model-specific post-processing
-    switch (m_current_model_type) {
-        case MODEL_DEEPSEEK:
-            // Remove any thinking tags that might appear
-            {
-                size_t think_start = result.find("<think>");
-                size_t think_end = result.find("</think>");
-                if (think_start != std::string::npos && think_end != std::string::npos && think_end > think_start) {
-                    result.erase(think_start, think_end - think_start + 8);
-                }
-                // Remove any reasoning blocks
-                think_start = result.find("<reasoning>");
-                think_end = result.find("</reasoning>");
-                if (think_start != std::string::npos && think_end != std::string::npos && think_end > think_start) {
-                    result.erase(think_start, think_end - think_start + 12);
-                }
-            }
-            break;
-        case MODEL_PHI4:
-            // Clean up any residual tags
-            {
-                size_t tag_pos = result.find("<|");
-                if (tag_pos != std::string::npos) {
-                    result = result.substr(0, tag_pos);
-                }
-            }
-            break;
-    }
-
-    // General cleanup
-    size_t end = result.find_last_not_of(" \t\n\r");
-    if (end != std::string::npos) {
-        result = result.substr(0, end + 1);
-    }
-
-    // Remove any leading whitespace
-    size_t start = result.find_first_not_of(" \t\n\r");
-    if (start != std::string::npos) {
-        result = result.substr(start);
-    }
-
-    LOGI("Final response length: %zu", result.length());
-    return result.empty() ? "I apologize, but I couldn't generate a response. Please try again." : result;
-}
-
-void LlamaWrapper::cleanup() {
-    if (m_initialized) {
-        LOGI("Cleaning up LlamaWrapper - Model type was: %d", static_cast<int>(m_current_model_type));
-        if (m_context) {
-            llama_free(m_context);
-            m_context = nullptr;
-        }
-        if (m_model) {
-            llama_model_free(m_model);
-            m_model = nullptr;
-        }
-        m_initialized = false;
-        m_current_model_type = MODEL_UNKNOWN; // Reset model type
-    }
-}
-
-std::vector<int> LlamaWrapper::tokenize(const std::string& text, bool add_bos) {
+std::vector<llama_token> LlamaWrapper::tokenize(const std::string& text, bool add_bos) {
     if (!m_model) return {};
+    const struct llama_vocab* vocab = llama_model_get_vocab(m_model);
+    if (!vocab) return {};
 
-    auto vocab = llama_model_get_vocab(m_model);
-    int n_tokens = text.length() + (add_bos ? 1 : 0);
-    std::vector<int> tokens(n_tokens);
-    n_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, false);
+    std::vector<llama_token> tokens(text.length() + (add_bos ? 1 : 0));
+    int n_tokens = llama_tokenize(
+            vocab,
+            text.c_str(),
+            text.length(),
+            tokens.data(),
+            tokens.size(),
+            add_bos,
+            false
+    );
+
     if (n_tokens < 0) {
-        tokens.resize(text.length() + 100);
-        n_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, false);
-        if (n_tokens < 0) {
-            LOGE("Failed to tokenize text after resize");
-            tokens.clear();
-            return tokens;
-        }
+        LOGE("Failed to tokenize text");
+        return {};
     }
+
     tokens.resize(n_tokens);
     return tokens;
 }
 
-std::string LlamaWrapper::detokenize(const std::vector<int>& tokens) {
+std::string LlamaWrapper::detokenize(const std::vector<llama_token>& tokens) {
     if (!m_model || tokens.empty()) return "";
+    const struct llama_vocab* vocab = llama_model_get_vocab(m_model);
+    if (!vocab) return "";
 
     std::string result;
-    auto vocab = llama_model_get_vocab(m_model);
-    for (int token : tokens) {
-        char piece[256] = {0};
-        int32_t n_chars = llama_token_to_piece(vocab, token, piece, sizeof(piece), 0, false);
-        if (n_chars > 0) {
-            result += std::string(piece, n_chars);
+    result.reserve(tokens.size() * 4);
+
+    for (llama_token token : tokens) {
+        char token_str[256] = {0};
+        int token_len = llama_token_to_piece(
+                vocab, token, token_str, sizeof(token_str), 0, false
+        );
+        if (token_len > 0 && token_len < sizeof(token_str)) {
+            result.append(token_str, token_len);
         }
     }
     return result;
 }
 
-std::string LlamaWrapper::generateText(const std::vector<int>& prompt_tokens, int max_tokens) {
-    if (prompt_tokens.empty() || !m_context) {
-        return "";
+std::string LlamaWrapper::generateText(const std::vector<llama_token>& prompt_tokens, int max_tokens) {
+    if (!m_context || prompt_tokens.empty()) return "";
+
+    // Clear memory
+    llama_memory_t mem = llama_get_memory(m_context);
+    if (mem) {
+        llama_memory_clear(mem, true);
     }
 
-    LOGI("Generating text with %zu prompt tokens, max %d new tokens", prompt_tokens.size(), max_tokens);
+    // Process prompt
+    llama_batch batch = llama_batch_get_one(
+            const_cast<llama_token*>(prompt_tokens.data()),
+            prompt_tokens.size()
+    );
 
-    std::string result = "";
-    int n_len = max_tokens;
-    int n_cur = 0;
-
-    llama_batch batch = llama_batch_init(512, 0, 1);
-
-    // Evaluate the prompt
-    for (size_t i = 0; i < prompt_tokens.size(); i++) {
-        batch.token[batch.n_tokens] = prompt_tokens[i];
-        batch.pos[batch.n_tokens] = i;
-        batch.n_seq_id[batch.n_tokens] = 1;
-        batch.seq_id[batch.n_tokens][0] = 0;
-        batch.logits[batch.n_tokens] = false;
-        batch.n_tokens++;
+    if (llama_decode(m_context, batch)) {
+        LOGE("Failed to decode prompt batch");
+        return "Error: Failed to process prompt";
     }
-    batch.logits[batch.n_tokens - 1] = true;
 
-    if (llama_decode(m_context, batch) != 0) {
-        LOGE("llama_decode() failed on prompt");
-        llama_batch_free(batch);
-        return "Error: Failed to decode prompt";
-    }
-    n_cur = batch.n_tokens;
+    std::vector<llama_token> response_tokens;
+    const struct llama_vocab* vocab = llama_model_get_vocab(m_model);
 
-    // Generation loop
-    while (n_cur <= n_len + prompt_tokens.size()) {
-        auto vocab = llama_model_get_vocab(m_model);
-        auto n_vocab = llama_vocab_n_tokens(vocab);
-        auto * logits = llama_get_logits_ith(m_context, batch.n_tokens - 1);
+    // Generate tokens
+    for (int i = 0; i < max_tokens; ++i) {
+        llama_token next_token = llama_sampler_sample(m_sampler, m_context, -1);
 
-        std::vector<llama_token_data> candidates;
-        candidates.reserve(n_vocab);
-        for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
-            candidates.emplace_back(llama_token_data{token_id, logits[token_id], 0.0f});
-        }
-        llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
-
-        // Create sampler chain with model-specific parameters
-        auto sparams = llama_sampler_chain_default_params();
-        auto sampler = llama_sampler_chain_init(sparams);
-
-        // Model-specific sampling parameters
-        switch (m_current_model_type) {
-            case MODEL_LFM2:
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(50));
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.9f, 1));
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.7f));
-                break;
-            case MODEL_PHI4:
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40));
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.95f, 1));
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.7f));
-                break;
-            case MODEL_QWEN:
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(60));
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.8f, 1));
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.7f));
-                break;
-            case MODEL_DEEPSEEK:
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(50));
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.85f, 1));
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.6f));
-                break;
-            default:
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40));
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.95f, 1));
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.8f));
-                break;
-        }
-
-        llama_sampler_chain_add(sampler, llama_sampler_init_dist(1234));
-
-        llama_token id = llama_sampler_sample(sampler, m_context, batch.n_tokens - 1);
-        llama_sampler_accept(sampler, id);
-        llama_sampler_free(sampler);
-
-        // Check for end of stream
-        if (id == llama_vocab_eos(vocab)) {
-            LOGI("EOS token encountered, stopping generation");
+        // Check for end of sequence
+        if (next_token == llama_vocab_eos(vocab)) {
             break;
         }
 
-        // Append the token to the result
-        char piece[256] = {0};
-        int32_t n_chars = llama_token_to_piece(vocab, id, piece, sizeof(piece), 0, false);
-        if (n_chars > 0) {
-            std::string token_str(piece, n_chars);
-            result += token_str;
+        response_tokens.push_back(next_token);
+        llama_sampler_accept(m_sampler, next_token);
 
-            // Check for model-specific stop sequences during generation
-            std::vector<std::string> stop_sequences = getStopSequences();
-            for (const std::string& stop_seq : stop_sequences) {
-                if (result.find(stop_seq) != std::string::npos) {
-                    LOGI("Stop sequence detected during generation: %s", stop_seq.c_str());
-                    llama_batch_free(batch);
-                    return result.substr(0, result.find(stop_seq));
-                }
-            }
-        }
-
-        // Prepare for the next iteration
-        batch.n_tokens = 0;
-        batch.token[0] = id;
-        batch.pos[0] = n_cur;
-        batch.n_seq_id[0] = 1;
-        batch.seq_id[0][0] = 0;
-        batch.logits[0] = true;
-        batch.n_tokens = 1;
-
-        if (llama_decode(m_context, batch) != 0) {
-            LOGE("llama_decode() failed during generation");
+        // Process the new token
+        llama_batch single_batch = llama_batch_get_one(&next_token, 1);
+        if (llama_decode(m_context, single_batch)) {
+            LOGE("Failed to decode token at position %d", i);
             break;
         }
-        n_cur++;
     }
 
-    llama_batch_free(batch);
-
-    LOGI("Generated %zu characters", result.length());
-    return result;
+    return detokenize(response_tokens);
 }

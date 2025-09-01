@@ -5,16 +5,15 @@ cmake_minimum_required(VERSION 3.22.1)
 project("localaiindia")
 
 # Add the directory containing your pre-built libraries to the search path.
-# The libllama.so is located in the jniLibs directory
 link_directories(${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI})
 
-# Create a library target for your own C++ code (e.g., native-lib.cpp)
+# Create a library target for your own C++ code
 add_library(
         localaiindia
         SHARED
         native-lib.cpp
         llama_wrapper.cpp
-        jni_wrapper.cpp
+        # jni_wrapper.cpp - REMOVED COMPLETELY
 )
 
 # Find and link the Android log library
@@ -23,11 +22,9 @@ find_library(
         log
 )
 
-# This is the crucial part: link your library against the log library AND llama.
-# Because we added the path in link_directories, CMake can now find "llama".
+# Link against the log library AND llama
 target_link_libraries(
         localaiindia
         ${log-lib}
-        # This will now correctly resolve to libllama.so in the correct ABI folder
         llama
 )

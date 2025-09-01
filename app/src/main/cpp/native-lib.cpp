@@ -1,13 +1,14 @@
 #include <jni.h>
-#include <string>
 #include <android/log.h>
+#include <string>
+#include <memory>
 #include "llama_wrapper.h"
 
 #define LOG_TAG "LocalAIIndia"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-static LlamaWrapper* g_llama_wrapper = nullptr;
+static std::unique_ptr<LlamaWrapper> g_llama_wrapper;
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_localaiindia_LlamaService_stringFromJNI(
@@ -22,29 +23,42 @@ Java_com_example_localaiindia_LlamaService_initializeModel(
         JNIEnv* env,
         jobject /* this */,
         jstring modelPath) {
-    
-    const char* path = env->GetStringUTFChars(modelPath, 0);
-    LOGI("Initializing model at path: %s", path);
-    
+
+    const char* path = nullptr;
+
     try {
-        if (g_llama_wrapper == nullptr) {
-            g_llama_wrapper = new LlamaWrapper();
+        path = env->GetStringUTFChars(modelPath, 0);
+        if (!path) {
+            LOGE("Failed to get model path string");
+            return JNI_FALSE;
         }
-        
+
+        LOGI("Initializing model at path: %s", path);
+
+        g_llama_wrapper.reset();
+        g_llama_wrapper = std::make_unique<LlamaWrapper>();
+
         bool result = g_llama_wrapper->initialize(std::string(path));
+
         env->ReleaseStringUTFChars(modelPath, path);
-        
+        path = nullptr;
+
         if (result) {
             LOGI("Model initialized successfully");
         } else {
             LOGE("Failed to initialize model");
+            g_llama_wrapper.reset();
         }
-        
-        return result;
+
+        return result ? JNI_TRUE : JNI_FALSE;
+
     } catch (const std::exception& e) {
         LOGE("Exception during model initialization: %s", e.what());
-        env->ReleaseStringUTFChars(modelPath, path);
-        return false;
+        if (path) {
+            env->ReleaseStringUTFChars(modelPath, path);
+        }
+        g_llama_wrapper.reset();
+        return JNI_FALSE;
     }
 }
 
@@ -53,24 +67,36 @@ Java_com_example_localaiindia_LlamaService_generateResponse(
         JNIEnv* env,
         jobject /* this */,
         jstring prompt) {
-    
-    if (g_llama_wrapper == nullptr) {
+
+    if (!g_llama_wrapper) {
         LOGE("Model not initialized");
         return env->NewStringUTF("Error: Model not initialized");
     }
-    
-    const char* promptStr = env->GetStringUTFChars(prompt, 0);
-    LOGI("Generating response for prompt: %s", promptStr);
-    
+
+    const char* promptStr = nullptr;
+
     try {
+        promptStr = env->GetStringUTFChars(prompt, 0);
+        if (!promptStr) {
+            LOGE("Failed to get prompt string");
+            return env->NewStringUTF("Error: Invalid prompt");
+        }
+
+        LOGI("Generating response for prompt: %.30s...", promptStr);
+
         std::string response = g_llama_wrapper->generateResponse(std::string(promptStr));
+
         env->ReleaseStringUTFChars(prompt, promptStr);
-        
-        LOGI("Generated response: %s", response.c_str());
+        promptStr = nullptr;
+
+        LOGI("Generated response: %.50s...", response.c_str());
         return env->NewStringUTF(response.c_str());
+
     } catch (const std::exception& e) {
         LOGE("Exception during response generation: %s", e.what());
-        env->ReleaseStringUTFChars(prompt, promptStr);
+        if (promptStr) {
+            env->ReleaseStringUTFChars(prompt, promptStr);
+        }
         return env->NewStringUTF("Error: Failed to generate response");
     }
 }
@@ -79,10 +105,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_example_localaiindia_LlamaService_cleanup(
         JNIEnv* env,
         jobject /* this */) {
-    
+
     LOGI("Cleaning up model");
-    if (g_llama_wrapper != nullptr) {
-        delete g_llama_wrapper;
-        g_llama_wrapper = nullptr;
+    try {
+        g_llama_wrapper.reset();
+        LOGI("Model cleanup completed");
+    } catch (const std::exception& e) {
+        LOGE("Exception during cleanup: %s", e.what());
     }
 }

@@ -1,0 +1,100 @@
+What is artificial intelligence?
+Explain quantum computing in simple terms.
+Describe the process of photosynthesis.
+What causes rainbows to form?
+How does the human brain store memories?
+Explain the greenhouse effect.
+What are black holes and how do they form?
+Why do we see different colors in the sky during sunrise and sunset?
+What is the theory of evolution?
+Explain the concept of supply and demand in economics.
+What is blockchain technology?
+Describe how the internet works.
+What are the seven wonders of the world?
+Explain the difference between a virus and bacteria.
+What is the significance of the Magna Carta?
+If A is taller than B and B is taller than C, who is the shortest?
+There are 5 apples, you take away 2. How many do you have?
+A train leaves at 3 PM and arrives at 6 PM. How long was the journey?
+If today is Wednesday, what day will it be 10 days from now?
+If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly?
+You have 3 switches downstairs and one bulb upstairs. How can you find out which switch controls the bulb if you can only go upstairs once?
+If 2 pencils cost ₹10, how much will 5 pencils cost?
+John is older than Mary. Mary is older than Peter. Who is the youngest?
+If you rearrange the letters 'LISTEN' you get another meaningful word. What is it?
+A farmer has 17 sheep, and all but 9 run away. How many are left?
+You have 2 buckets: one 5 liters and one 3 liters. How can you measure exactly 4 liters?
+If it takes 5 machines 5 minutes to make 5 parts, how long will 100 machines take to make 100 parts?
+If a clock strikes 4 times in 4 seconds, how long will it take to strike 12 times?
+Which weighs more: a kilogram of cotton or a kilogram of iron?
+If two’s company and three’s a crowd, what are four and five?
+Solve: 12 + 28 - 5 × 2
+If x + 5 = 12, what is x?
+Simplify: (3 + 2) × (8 - 3)
+What is the area of a circle with radius 7?
+Find the perimeter of a rectangle with length 8 and width 5.
+If a train travels 60 km in 1 hour, how far will it go in 4 hours?
+Solve: 5x - 10 = 20
+What is 15% of 200?
+If an item costs ₹800 and is sold at 25% discount, what is the selling price?
+Simplify: 144 ÷ 12
+Convert 0.75 into a fraction.
+What is the probability of getting heads in a coin toss?
+Find the median of [2, 5, 9, 12, 14].
+What is the square root of 169?
+If a car uses 5 liters of petrol to travel 60 km, how much petrol is needed to travel 180 km?
+Write a Python function to reverse a string.
+Explain the difference between a list and a dictionary in Python.
+What is a class in object-oriented programming?
+Write a SQL query to select all records from a table named Students.
+What is recursion in programming?
+Write a program in C to print the first 10 natural numbers.
+Explain the concept of Big O notation.
+What is the difference between stack and queue?
+Write a Java program to check if a number is prime.
+Explain the concept of inheritance in OOP.
+What is the difference between compilation and interpretation?
+Write a JavaScript function to calculate factorial of a number.
+What is a REST API?
+Explain the difference between GET and POST in HTTP.
+What is a neural network in machine learning?
+Write a short story about a child who discovers a hidden door in their house.
+Compose a poem about the night sky.
+Correct the grammar: He go to school everyday.
+What is the meaning of the idiom 'a blessing in disguise'?
+Give synonyms for the word 'happy'.
+Write an email to your teacher explaining why you missed class.
+What is the difference between 'affect' and 'effect'?
+Translate: 'Bonjour' from French to English.
+Write a headline for a news article about new technology.
+Explain the difference between formal and informal writing.
+Rewrite the sentence in passive voice: The cat chased the mouse.
+What is the opposite of the word 'optimistic'?
+Make a sentence using the word 'perseverance'.
+Summarize the story of Cinderella in 3 sentences.
+What is a metaphor? Give an example.
+If you could live on Mars, what would daily life be like?
+Do you think technology makes people more connected or more isolated?
+Imagine a world without money. How would people trade?
+If animals could talk, which would be the funniest?
+What is the meaning of life according to philosophy?
+Describe your dream city.
+Should robots have rights?
+If you could travel in time, where would you go?
+What are the pros and cons of social media?
+Describe an invention you think will exist in 50 years.
+Do you believe destiny is real or do we make our own choices?
+What would happen if humans could live forever?
+Is space exploration worth the cost?
+Should school homework be banned?
+What is more important: knowledge or imagination?
+Tell a joke about computers.
+What is the capital of Japan?
+Who was the first President of the United States?
+If you mix red and blue paint, what color do you get?
+Explain why the Earth orbits the Sun.
+What is the boiling point of water in Celsius?
+Who wrote 'Romeo and Juliet'?
+Name the largest planet in our solar system.
+What is the national animal of India?
+What is the chemical symbol for gold?
