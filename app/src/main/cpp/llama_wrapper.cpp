@@ -158,7 +158,7 @@ std::string LlamaWrapper::generateResponse(const std::string& prompt) {
     // IMPORTANT: Always reset context for new conversation to prevent template mixing
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = m_n_ctx;
-    ctx_params.n_batch = 128;
+    ctx_params.n_batch = 64;
     ctx_params.n_threads = m_n_threads;
 
     if (m_context) {

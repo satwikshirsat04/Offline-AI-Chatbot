@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -83,33 +87,39 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun initializeModel(modelId: String) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                _isModelReady.value = false
-                _currentModel.value = modelId
+    fun initializeModel(modelId: String, autoRunBenchmark: Boolean = false) {
+    viewModelScope.launch {
+        try {
+            _isLoading.value = true
+            _isModelReady.value = false
+            _currentModel.value = modelId
 
-                val success = llamaService.initializeModel(getApplication(), modelId)
-                _isModelReady.value = success
+            val success = llamaService.initializeModel(getApplication(), modelId)
+            _isModelReady.value = success
 
-                if (success) {
-                    // Clear response time history when switching models
-                    _responseTimeHistory.value = emptyList()
-                    _sessionStats.value = null
-                    createNewChat()
-                } else {
-                    _currentModel.value = null
+            if (success) {
+                // Clear response time history when switching models
+                _responseTimeHistory.value = emptyList()
+                _sessionStats.value = null
+                createNewChat()
+                
+                // Auto-run benchmark after successful model load if requested
+                if (autoRunBenchmark) {
+                    // Start with 25 prompts (you can change to 50/100 later)
+                    runBenchmarkInChat(25, "prompt.txt")
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("ChatViewModel", "Error initializing model", e)
-                _isModelReady.value = false
+            } else {
                 _currentModel.value = null
-            } finally {
-                _isLoading.value = false
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatViewModel", "Error initializing model", e)
+            _isModelReady.value = false
+            _currentModel.value = null
+        } finally {
+            _isLoading.value = false
         }
     }
+}
 
     fun createNewChat() {
         // Save current session if it exists and has messages
@@ -270,6 +280,104 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+    // Add this inside ChatViewModel class
+private var isAutoBenchmarkRunning = false
+
+fun runBenchmarkInChat(promptCount: Int = 25, promptFileName: String? = null) {
+    // guard: only run when model ready and not already running
+    if (!_isModelReady.value) return
+    if (isAutoBenchmarkRunning) return
+
+    isAutoBenchmarkRunning = true
+
+    viewModelScope.launch {
+        _isLoading.value = true // optional: show model busy UI while auto-run
+
+        try {
+            // Load prompts: prefer asset file, else fallback to built-in prompts
+            val loadedPrompts = if (!promptFileName.isNullOrBlank()) {
+                val filePrompts = benchmarkService.loadPromptsFromAssets(promptFileName)
+                if (filePrompts.isNotEmpty()) {
+                    // Create list of length promptCount (cycle if file smaller)
+                    if (promptCount <= filePrompts.size) filePrompts.take(promptCount)
+                    else List(promptCount) { filePrompts[it % filePrompts.size] }
+                } else {
+                    // fallback to built-in
+                    if (promptCount <= BenchmarkService.BENCHMARK_PROMPTS.size) BenchmarkService.BENCHMARK_PROMPTS.take(promptCount)
+                    else List(promptCount) { BenchmarkService.BENCHMARK_PROMPTS[it % BenchmarkService.BENCHMARK_PROMPTS.size] }
+                }
+            } else {
+                if (promptCount <= BenchmarkService.BENCHMARK_PROMPTS.size) BenchmarkService.BENCHMARK_PROMPTS.take(promptCount)
+                else List(promptCount) { BenchmarkService.BENCHMARK_PROMPTS[it % BenchmarkService.BENCHMARK_PROMPTS.size] }
+            }
+
+            for ((index, prompt) in loadedPrompts.withIndex()) {
+                // 1) Append prompt as user message
+                val userMessage = ChatMessage(
+                    text = prompt,
+                    isFromUser = true,
+                    timestamp = System.currentTimeMillis()
+                )
+                _messages.value = _messages.value + userMessage
+
+                // 2) Append typing indicator
+                val typingMessage = ChatMessage(
+                    text = "",
+                    isFromUser = false,
+                    isTyping = true,
+                    timestamp = System.currentTimeMillis()
+                )
+                _messages.value = _messages.value + typingMessage
+
+                // 3) Call model on IO dispatcher so UI thread isn't blocked
+                val startTime = System.currentTimeMillis()
+                val response: String = try {
+                    withContext(Dispatchers.IO) {
+                        llamaService.chat(prompt)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Error during auto-run prompt #${index+1}", e)
+                    "" // will be handled below
+                }
+                val endTime = System.currentTimeMillis()
+                val responseTime = endTime - startTime
+
+                // 4) Replace typing indicator with result (or error text)
+                if (response.isNotBlank()) {
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
+                        text = response,
+                        isFromUser = false,
+                        timestamp = endTime
+                    )
+
+                    // record for session/benchmark stats (so your dashboard updates)
+                    recordResponseTime(prompt, responseTime, response, success = true)
+                } else {
+                    _messages.value = _messages.value.dropLast(1) + ChatMessage(
+                        text = "⚠️ Error generating response for prompt ${index + 1}",
+                        isFromUser = false,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    recordResponseTime(prompt, responseTime, "", success = false)
+                }
+
+                // Save session and update calculated stats so UI dashboard updates live
+                saveCurrentSession()
+                calculateSessionStats()
+
+                // small delay so user can see the conversation flow (tune this)
+                delay(800)
+            }
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "runBenchmarkInChat failed", e)
+        } finally {
+            isAutoBenchmarkRunning = false
+            _isLoading.value = false
+        }
+    }
+}
+
     private fun recordResponseTime(prompt: String, responseTime: Long, response: String, success: Boolean = true) {
         val currentModel = _currentModel.value ?: return
         val currentHistory = _responseTimeHistory.value.toMutableList()
@@ -327,15 +435,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return if (totalTimeSeconds > 0) totalTokens / totalTimeSeconds else 0.0
     }
 
+
     // Benchmark functions
-    fun startBenchmark(promptCount: Int = 100) {
+    fun startBenchmark(promptCount: Int = 100, promptFileName: String? = null) {
         val modelId = _currentModel.value ?: return
         val modelName = getModelDisplayName(modelId)
-        
+
         viewModelScope.launch {
-            benchmarkService.startBenchmark(modelId, modelName, llamaService, promptCount)
+            benchmarkService.startBenchmark(modelId, modelName, llamaService, promptCount, promptFileName)
         }
     }
+
 
     fun cancelBenchmark() {
         benchmarkService.cancelBenchmark()

@@ -50,60 +50,96 @@ class BenchmarkService(private val context: Context) {
         val error: String? = null
     )
 
-    suspend fun startBenchmark(
-        modelId: String,
-        modelName: String,
-        llamaService: LlamaService,
-        promptCount: Int = 100
-    ): String {
-        // Cancel any existing benchmark
-        currentJob?.cancel()
 
-        val prompts = if (promptCount <= BENCHMARK_PROMPTS.size) {
-            BENCHMARK_PROMPTS.take(promptCount)
-        } else {
-            // Repeat prompts if needed
-            List(promptCount) { BENCHMARK_PROMPTS[it % BENCHMARK_PROMPTS.size] }
+
+    // inside class BenchmarkService
+
+// Add this helper function
+fun loadPromptsFromAssets(fileName: String): List<String> {
+    return try {
+        context.assets.open(fileName).bufferedReader().useLines { lines ->
+            lines.map { line ->
+                var l = line.trim()
+                // remove trailing commas / surrounding quotes / stray plus signs
+                if (l.startsWith("\"")) l = l.removePrefix("\"")
+                while (l.endsWith(",") || l.endsWith("+") || l.endsWith("\"")) {
+                    l = l.dropLast(1)
+                }
+                l.trim()
+            }.filter { it.isNotBlank() }.toList()
         }
-
-        val benchmarkRun = BenchmarkRun(
-            modelId = modelId,
-            modelName = modelName,
-            startTime = System.currentTimeMillis(),
-            totalPrompts = prompts.size,
-            status = BenchmarkStatus.RUNNING
-        )
-
-        benchmarkDao.insertBenchmarkRun(benchmarkRun)
-
-        currentJob = CoroutineScope(Dispatchers.IO).launch {
-            try {
-                runBenchmark(benchmarkRun, prompts, llamaService)
-            } catch (e: CancellationException) {
-                Log.d(TAG, "Benchmark cancelled")
-                benchmarkDao.updateBenchmarkRun(
-                    benchmarkRun.copy(
-                        status = BenchmarkStatus.CANCELLED,
-                        endTime = System.currentTimeMillis()
-                    )
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Benchmark failed", e)
-                benchmarkDao.updateBenchmarkRun(
-                    benchmarkRun.copy(
-                        status = BenchmarkStatus.FAILED,
-                        endTime = System.currentTimeMillis()
-                    )
-                )
-                _benchmarkProgress.value = _benchmarkProgress.value?.copy(
-                    error = e.message,
-                    isCompleted = true
-                )
-            }
-        }
-
-        return benchmarkRun.id
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to load prompts from assets/$fileName: ${e.message}")
+        emptyList()
     }
+}
+
+// Replace the original startBenchmark with this updated version
+suspend fun startBenchmark(
+    modelId: String,
+    modelName: String,
+    llamaService: LlamaService,
+    promptCount: Int = 100,
+    promptFileName: String? = null
+): String {
+    // Cancel any existing benchmark
+    currentJob?.cancel()
+
+    // Load prompts (prefer asset file if provided)
+    val prompts: List<String> = if (!promptFileName.isNullOrBlank()) {
+        val filePrompts = loadPromptsFromAssets(promptFileName)
+        if (filePrompts.isNotEmpty()) {
+            if (promptCount <= filePrompts.size) filePrompts.take(promptCount)
+            else List(promptCount) { filePrompts[it % filePrompts.size] }
+        } else {
+            // fallback to builtin
+            if (promptCount <= BENCHMARK_PROMPTS.size) BENCHMARK_PROMPTS.take(promptCount)
+            else List(promptCount) { BENCHMARK_PROMPTS[it % BENCHMARK_PROMPTS.size] }
+        }
+    } else {
+        if (promptCount <= BENCHMARK_PROMPTS.size) BENCHMARK_PROMPTS.take(promptCount)
+        else List(promptCount) { BENCHMARK_PROMPTS[it % BENCHMARK_PROMPTS.size] }
+    }
+
+    val benchmarkRun = BenchmarkRun(
+        modelId = modelId,
+        modelName = modelName,
+        startTime = System.currentTimeMillis(),
+        totalPrompts = prompts.size,
+        status = BenchmarkStatus.RUNNING
+    )
+
+    benchmarkDao.insertBenchmarkRun(benchmarkRun)
+
+    currentJob = CoroutineScope(Dispatchers.IO).launch {
+        try {
+            runBenchmark(benchmarkRun, prompts, llamaService)
+        } catch (e: CancellationException) {
+            Log.d(TAG, "Benchmark cancelled")
+            benchmarkDao.updateBenchmarkRun(
+                benchmarkRun.copy(
+                    status = BenchmarkStatus.CANCELLED,
+                    endTime = System.currentTimeMillis()
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Benchmark failed", e)
+            benchmarkDao.updateBenchmarkRun(
+                benchmarkRun.copy(
+                    status = BenchmarkStatus.FAILED,
+                    endTime = System.currentTimeMillis()
+                )
+            )
+            _benchmarkProgress.value = _benchmarkProgress.value?.copy(
+                error = e.message,
+                isCompleted = true
+            )
+        }
+    }
+
+    return benchmarkRun.id
+}
+
 
     private suspend fun runBenchmark(
         benchmarkRun: BenchmarkRun,

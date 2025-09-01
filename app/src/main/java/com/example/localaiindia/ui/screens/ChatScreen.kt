@@ -127,7 +127,7 @@ fun ChatScreen(
     if (showModelSelection) {
         ModelSelectionScreen(
             onModelSelected = { selectedModel ->
-                chatViewModel.initializeModel(selectedModel.id)
+                chatViewModel.initializeModel(selectedModel.id, autoRunBenchmark = true)
                 showModelSelection = false
             },
             isDarkTheme = isDarkTheme
@@ -474,7 +474,7 @@ fun BenchmarkMenuOverlay(
 
                     OutlinedButton(
                         onClick = {
-                            chatViewModel.startBenchmark(50)
+                            chatViewModel.runBenchmarkInChat(25, "prompt.txt")
                             onDismiss()
                         },
                         modifier = Modifier.fillMaxWidth(),
